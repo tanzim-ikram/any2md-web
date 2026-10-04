@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "./types";
+import type { FormatId, ToolDefinition } from "./types";
 
 /**
  * Single source of truth for every tool the product offers. The converter
@@ -30,6 +30,7 @@ export const TOOLS: ToolDefinition[] = [
     limitations: [
       "Tables without visible borders may not be recovered as Markdown tables.",
       "Scanned (image-only) PDFs are not OCR'd — only text-layer PDFs are supported.",
+      "Bold and italic emphasis are not recovered — text is extracted without inline formatting.",
     ],
   },
   {
@@ -209,4 +210,14 @@ export function getTool(id: string): ToolDefinition | undefined {
 
 export function isToolUsable(tool: ToolDefinition | undefined): tool is ToolDefinition {
   return !!tool && tool.status !== "unavailable";
+}
+
+/** Client-safe: which conversion tools accept this source format, usable
+ * ones only. Pure data lookup over TOOLS -- no engine imports, so this is
+ * safe to use from a client component (unlike lib/conversion/registry.ts,
+ * which dynamically imports every engine and must stay server-only). */
+export function getToolsForSource(source: FormatId): ToolDefinition[] {
+  return TOOLS.filter(
+    (t) => t.category === "conversion" && t.sourceFormats.includes(source) && t.status !== "unavailable",
+  );
 }

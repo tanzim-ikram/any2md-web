@@ -27,7 +27,7 @@ function decodeText(buffer: Buffer): string {
 
 /** Escape characters that would otherwise be interpreted as Markdown syntax. */
 function escapeMarkdown(text: string): string {
-  return text.replace(/([\`*_{}[\]()#+\-.!>|~])/g, "\$1");
+  return text.replace(/([\\`*_{}[\]()#+\-.!>|~])/g, "\\$1");
 }
 
 export const txtToMarkdown: ConversionEngine = async (input, filename, options) => {
