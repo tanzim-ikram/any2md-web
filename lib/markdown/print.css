@@ -1,0 +1,23 @@
+/*
+ * Ported verbatim from the desktop app's any2md/conversion/from_markdown.py
+ * (_PDF_CSS). Extra rules applied only when paginating to PDF: the page
+ * margins come from @page, so the screen-oriented body padding/max-width
+ * from markdown.css must not stack on top.
+ */
+body { max-width: none; padding: 0; font-size: 11pt; color: #1a1a18; background: #ffffff; }
+pre, code { word-wrap: break-word; }
+pre { white-space: pre-wrap; page-break-inside: auto; }
+h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }
+img, table, blockquote { page-break-inside: avoid; }
+th, td { word-wrap: break-word; vertical-align: top; }
+thead { display: table-header-group; }
+tr { page-break-inside: avoid; }
+
+@page {
+    margin: 2cm 2.5cm;
+    @bottom-right {
+        content: counter(page);
+        font-size: 11px;
+        color: #a0a09a;
+    }
+}

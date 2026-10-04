@@ -1,0 +1,83 @@
+/*
+ * Ported verbatim from the desktop app's any2md/conversion/from_markdown.py
+ * (_MARKDOWN_CSS). Tuned and good — do not "improve" without a reason.
+ * Used for: .html export, md:pdf (base layer), and the editor preview.
+ */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    color: #1a1a18;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 48px;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    color: #111110;
+}
+h1 { font-size: 2em; margin-top: 0; }
+h2 { font-size: 1.4em; }
+h3 { font-size: 1.15em; }
+code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.875em;
+    background: #f3f3f1;
+    padding: 0.15em 0.35em;
+    border-radius: 3px;
+    color: #c7254e;
+}
+pre {
+    background: #f7f7f5;
+    border: 1px solid #e4e4e0;
+    border-radius: 4px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    line-height: 1.5;
+}
+pre code {
+    background: none;
+    padding: 0;
+    color: #1a1a18;
+    font-size: 0.875em;
+}
+blockquote {
+    border-left: 3px solid #d4d4d0;
+    margin: 1em 0;
+    padding: 0.25em 1em;
+    color: #71716c;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+th, td {
+    border: 1px solid #e4e4e0;
+    padding: 8px 12px;
+    text-align: left;
+}
+th {
+    background: #f7f7f5;
+    font-weight: 600;
+}
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
+hr { border: none; border-top: 1px solid #e4e4e0; margin: 2em 0; }
+img { max-width: 100%; height: auto; border-radius: 4px; }
+ul, ol { padding-left: 1.5em; }
+li { margin: 0.25em 0; }
+
+@media (prefers-color-scheme: dark) {
+    body { color: #ededed; background: #0a0a0a; }
+    h1, h2, h3, h4, h5, h6 { color: #f5f5f3; }
+    code { background: #1f1f1d; color: #f28fb0; }
+    pre { background: #161614; border-color: #2a2a27; }
+    pre code { color: #ededed; }
+    blockquote { border-left-color: #3a3a36; color: #a0a09a; }
+    th, td { border-color: #2a2a27; }
+    th { background: #161614; }
+}
