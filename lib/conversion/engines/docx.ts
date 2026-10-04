@@ -29,7 +29,7 @@ export const docxToMarkdown: ConversionEngine = async (input, filename, options)
       {
         styleMap: STYLE_MAP,
         convertImage: options.preserveImages === false
-          ? mammoth.images.imgElement(() => ({ src: "" }))
+          ? mammoth.images.imgElement(async () => ({ src: "" }))
           : undefined,
       },
     );
