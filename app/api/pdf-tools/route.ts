@@ -6,16 +6,21 @@
  * lib/conversion/registry.ts -- they're reached through this route instead
  * and lib/pdf/toolbox.ts does the actual work. Inputs are files already
  * uploaded via /api/upload (so they're already validated and stored); this
- * route only loads them by fileId, runs the operation, stores the
- * output(s), and deletes the inputs -- mirroring /api/convert's lifecycle
- * handling.
+ * route only loads them by fileId and runs the operation. Unlike
+ * /api/convert, a successful PDF-tools operation does NOT change the
+ * input's format, so the input is left in place (reset to "uploaded")
+ * rather than deleted -- one upload can feed split, then rotate, then
+ * extract, the way a "toolbox" is expected to work, up to its normal
+ * one-hour retention window.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getFileStorage } from "../../../lib/storage";
-import { createFileRecord, deleteFile, getFileRecord, markFailed, updateFileRecord } from "../../../lib/lifecycle";
+import { createFileRecord, getFileRecord, markFailed, updateFileRecord } from "../../../lib/lifecycle";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../../../lib/rate-limit";
-import { errorResponse } from "../../../lib/api/errors";
-import { ConversionError } from "../../../lib/conversion/types";
+import { errorResponse, readJsonBody } from "../../../lib/api/errors";
+import { ConversionError, isRecoverable } from "../../../lib/conversion/types";
+import { MAX_FILES_PER_BATCH } from "../../../lib/security/validation";
+import { parsePageNumbers, parseQuality, parseRanges } from "../../../lib/pdf/request";
 import {
   compressPdf,
   extractPages,
@@ -23,11 +28,12 @@ import {
   reorderPages,
   rotatePdf,
   splitPdf,
-  type PageRange,
 } from "../../../lib/pdf/toolbox";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// Vercel Hobby's ceiling (60s) is the actual deploy target -- see the smoke
+// test plan.
+export const maxDuration = 60;
 
 type Operation = "merge" | "split" | "rotate" | "extract" | "reorder" | "compress";
 const OPERATIONS: Operation[] = ["merge", "split", "rotate", "extract", "reorder", "compress"];
@@ -36,11 +42,11 @@ interface PdfToolsRequestBody {
   operation?: string;
   fileIds?: string[];
   options?: {
-    ranges?: PageRange[];
+    ranges?: unknown;
     degrees?: number;
-    pages?: number[];
-    order?: number[];
-    quality?: number;
+    pages?: unknown;
+    order?: unknown;
+    quality?: unknown;
   };
 }
 
@@ -85,16 +91,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as PdfToolsRequestBody;
+    const body = await readJsonBody<PdfToolsRequestBody>(request);
     if (!isOperation(body.operation)) {
-      throw new ConversionError("UNSUPPORTED_FORMAT", "Invalid request", "A valid operation is required.");
+      throw new ConversionError("INVALID_REQUEST", "Invalid request", "A valid operation is required.");
     }
     fileIds = (body.fileIds ?? []).filter((id): id is string => typeof id === "string" && id.length > 0);
     if (fileIds.length === 0) {
       throw new ConversionError("FILE_NOT_FOUND", "No files given", "At least one file is required.");
     }
+    if (fileIds.length > MAX_FILES_PER_BATCH) {
+      throw new ConversionError(
+        "TOO_MANY_FILES",
+        "Too many files",
+        `You can process up to ${MAX_FILES_PER_BATCH} files at a time.`,
+      );
+    }
     if (body.operation !== "merge" && fileIds.length !== 1) {
-      throw new ConversionError("UNSUPPORTED_FORMAT", "Invalid request", `"${body.operation}" takes exactly one file.`);
+      throw new ConversionError("INVALID_REQUEST", "Invalid request", `"${body.operation}" takes exactly one file.`);
     }
 
     await Promise.all(fileIds.map((id) => updateFileRecord(id, { status: "processing" })));
@@ -109,7 +122,7 @@ export async function POST(request: NextRequest) {
       const { buffer, filename } = await loadInput(fileIds[0]);
       switch (body.operation) {
         case "split": {
-          const ranges = body.options?.ranges ?? [];
+          const ranges = parseRanges(body.options?.ranges ?? []);
           outputs.push(...(await splitPdf(buffer, filename, ranges)));
           break;
         }
@@ -118,19 +131,20 @@ export async function POST(request: NextRequest) {
           if (deg !== 90 && deg !== 180 && deg !== 270 && deg !== -90) {
             throw new ConversionError("INVALID_PAGE_RANGE", "Invalid rotation", "Rotation must be 90, 180, 270, or -90 degrees.");
           }
-          outputs.push(await rotatePdf(buffer, filename, deg, body.options?.pages));
+          const pages = body.options?.pages !== undefined ? parsePageNumbers(body.options.pages) : undefined;
+          outputs.push(await rotatePdf(buffer, filename, deg, pages));
           break;
         }
         case "extract": {
-          outputs.push(await extractPages(buffer, filename, body.options?.pages ?? []));
+          outputs.push(await extractPages(buffer, filename, parsePageNumbers(body.options?.pages ?? [])));
           break;
         }
         case "reorder": {
-          outputs.push(await reorderPages(buffer, filename, body.options?.order ?? []));
+          outputs.push(await reorderPages(buffer, filename, parsePageNumbers(body.options?.order ?? [])));
           break;
         }
         case "compress": {
-          const result = await compressPdf(buffer, filename, body.options?.quality);
+          const result = await compressPdf(buffer, filename, parseQuality(body.options?.quality));
           outputs.push(result);
           warnings.push(...result.warnings);
           break;
@@ -148,14 +162,22 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    // Inputs are no longer needed once the operation succeeds.
-    await Promise.all(fileIds.map((id) => deleteFile(id)));
+    // The operation never changes the input's format, so -- unlike
+    // /api/convert -- it's left in place rather than deleted: one upload
+    // can feed split, then rotate, then extract, up to its normal TTL.
+    await Promise.all(fileIds.map((id) => updateFileRecord(id, { status: "uploaded" })));
 
     return NextResponse.json({ outputs: stored, warnings });
   } catch (err) {
     if (fileIds.length) {
-      const message = err instanceof ConversionError ? err.message : "PDF operation failed";
-      await Promise.all(fileIds.map((id) => markFailed(id, "failed", message).catch(() => void 0)));
+      if (isRecoverable(err)) {
+        await Promise.all(
+          fileIds.map((id) => updateFileRecord(id, { status: "uploaded", error: undefined }).catch(() => void 0)),
+        );
+      } else {
+        const message = err instanceof ConversionError ? err.message : "PDF operation failed";
+        await Promise.all(fileIds.map((id) => markFailed(id, "failed", message).catch(() => void 0)));
+      }
     }
     return errorResponse(err);
   }

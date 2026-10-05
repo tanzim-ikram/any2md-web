@@ -10,6 +10,15 @@ import { ConversionError, type ErrorCode } from "../conversion/types";
 
 export function errorResponse(err: unknown, httpStatus?: number): NextResponse {
   if (err instanceof ConversionError) {
+    // A ConversionError's title/message are always user-safe, but a wrapped
+    // `cause` (the real underlying failure -- a Chromium launch error, a
+    // mammoth parse failure, ...) is server-only detail. Without this, an
+    // engine failure in production surfaces to the user with zero signal
+    // in the logs (see lib/conversion/engines/to-pdf.ts and friends, which
+    // pass `cause` precisely so this can log it).
+    if (err.cause !== undefined || statusForCode(err.code) >= 500) {
+      console.error(`[any2md] ${err.code}: ${err.message}`, err.cause ?? "");
+    }
     return NextResponse.json(
       { error: { code: err.code, title: err.title, message: err.message } },
       { status: httpStatus ?? statusForCode(err.code) },
@@ -35,6 +44,7 @@ function statusForCode(code: ErrorCode): number {
     case "FILE_NOT_FOUND":
     case "FILE_EXPIRED":
       return 404;
+    case "INVALID_REQUEST":
     case "FILE_TOO_LARGE":
     case "TOO_MANY_FILES":
     case "PAGE_LIMIT_EXCEEDED":
@@ -53,5 +63,17 @@ function statusForCode(code: ErrorCode): number {
       return 504;
     default:
       return 500;
+  }
+}
+
+/** Parses a route's JSON body, turning a malformed body into a clean 422
+ * instead of letting `SyntaxError` fall through to the generic 500 path
+ * (which also skips the error-specific cleanup each route's catch block
+ * does, e.g. not destroying an upload over unparseable JSON). */
+export async function readJsonBody<T>(request: Request): Promise<T> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    throw new ConversionError("INVALID_REQUEST", "Invalid request", "The request body was not valid JSON.");
   }
 }

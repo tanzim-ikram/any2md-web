@@ -36,11 +36,12 @@ export const xlsxToMarkdown: ConversionEngine = async (input, filename, options)
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.load(input as unknown as ExcelJS.Buffer);
-  } catch {
+  } catch (err) {
     throw new ConversionError(
       "CORRUPTED_FILE",
       "Couldn't read this spreadsheet",
       `"${filename}" could not be opened. It may be corrupted or password-protected.`,
+      { cause: err },
     );
   }
 

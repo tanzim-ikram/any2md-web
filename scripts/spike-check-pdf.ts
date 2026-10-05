@@ -6,6 +6,7 @@
  */
 import { markdownToPdf } from "../lib/conversion/engines/to-pdf";
 import fs from "node:fs/promises";
+import path from "node:path";
 
 const SAMPLE_MD = `# Phase 0 Spike
 
@@ -18,7 +19,7 @@ ${"More filler text to guarantee a third page of content appears here. ".repeat(
 
 async function main() {
   const result = await markdownToPdf(Buffer.from(SAMPLE_MD, "utf-8"), "spike.md", {});
-  const outPath = "G:/Projects/Web Projects/any2md-web/scripts/spike-output.pdf";
+  const outPath = path.join(import.meta.dirname, "spike-output.pdf");
   await fs.writeFile(outPath, result.buffer);
   console.log("Saved:", outPath, result.buffer.length, "bytes");
 

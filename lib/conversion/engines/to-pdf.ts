@@ -66,6 +66,7 @@ export async function renderHtmlToPdf(fullHtml: string): Promise<Buffer> {
       "INTERNAL_ERROR",
       "PDF rendering is temporarily unavailable",
       "The PDF renderer could not start. Please try again shortly.",
+      { cause: err },
     );
   }
 
@@ -84,6 +85,7 @@ export async function renderHtmlToPdf(fullHtml: string): Promise<Buffer> {
       "INTERNAL_ERROR",
       "Couldn't generate the PDF",
       "The document could not be rendered to PDF. It may contain content the renderer couldn't process.",
+      { cause: err },
     );
   } finally {
     await browser.close().catch(() => void 0);

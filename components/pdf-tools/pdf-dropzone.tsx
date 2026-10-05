@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type FileRejection } from "react-dropzone";
 import { UploadCloud } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { MAX_FILE_SIZE_BYTES, MAX_FILES_PER_BATCH } from "../../lib/security/validation";
+import { describeRejections } from "../../lib/upload/rejections";
 
 const ACCEPT = { "application/pdf": [".pdf"] };
 
@@ -18,8 +20,9 @@ export function PdfDropzone({
   label?: string;
 }) {
   const onDrop = useCallback(
-    (accepted: File[]) => {
+    (accepted: File[], rejections: FileRejection[]) => {
       if (accepted.length > 0) onFiles(accepted);
+      for (const message of describeRejections(rejections)) toast.error(message);
     },
     [onFiles],
   );

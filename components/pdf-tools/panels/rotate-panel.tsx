@@ -90,7 +90,7 @@ export function RotatePanel() {
               placeholder={`e.g. 1,3,5-7 — leave blank for all ${pdf.pageCount ?? ""} pages`}
             />
           </div>
-          <Button onClick={run} disabled={running} className="self-start">
+          <Button onClick={run} disabled={running || !pdf.fileId} className="self-start">
             {running ? "Rotating…" : "Rotate PDF"}
           </Button>
         </div>

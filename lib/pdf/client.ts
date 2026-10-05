@@ -60,5 +60,5 @@ export async function runPdfTool(payload: RunPdfToolPayload): Promise<PdfToolsRe
   return (await res.json()) as PdfToolsResult;
 }
 
-export { downloadUrl } from "../conversion/client";
+export { downloadUrl, downloadZipUrl, parseErrorResponse } from "../conversion/client";
 export { ClientConversionError };

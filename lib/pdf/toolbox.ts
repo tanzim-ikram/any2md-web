@@ -32,12 +32,14 @@ async function loadPdf(input: Buffer, filename: string): Promise<PDFDocument> {
         "PASSWORD_PROTECTED",
         "This PDF is password-protected",
         `"${filename}" is encrypted. Please remove the password and try again.`,
+        { cause: err },
       );
     }
     throw new ConversionError(
       "CORRUPTED_FILE",
       "Couldn't read this PDF",
       `"${filename}" could not be opened. It may be corrupted or not a valid PDF file.`,
+      { cause: err },
     );
   }
 }
@@ -145,7 +147,12 @@ export async function rotatePdf(
   const targets = pages?.length ? pages.map((p) => toZeroIndexed(p, pageCount, filename)) : doc.getPageIndices();
   for (const index of targets) {
     const page = doc.getPage(index);
-    page.setRotation(degrees(page.getRotation().angle + rotationDegrees));
+    // Normalize into [0, 360) -- pdf-lib's own validator only checks the
+    // angle is a multiple of 90, not that it's in range, so repeated
+    // rotations (e.g. 270 then 180) would otherwise accumulate past 360
+    // and write out a technically-valid but needlessly large /Rotate value.
+    const normalized = ((page.getRotation().angle + rotationDegrees) % 360 + 360) % 360;
+    page.setRotation(degrees(normalized));
   }
 
   const buffer = Buffer.from(await doc.save());

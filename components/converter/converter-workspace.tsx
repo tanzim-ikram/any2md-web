@@ -2,12 +2,12 @@
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { zipSync, type Zippable } from "fflate";
 import { Dropzone } from "./dropzone";
 import { QueueItemRow } from "./queue-item-row";
 import { Button } from "../ui/button";
 import { useConverterStore, type QueueItem } from "../../lib/store/converter-store";
-import { convertOneFile, downloadUrl, ClientConversionError } from "../../lib/conversion/client";
+import { convertOneFile, downloadZipUrl, parseErrorResponse, ClientConversionError } from "../../lib/conversion/client";
+import { saveBlob } from "../../lib/download/save-blob";
 
 export function ConverterWorkspace() {
   const { items, addFiles, updateItem, setTargetFormat, removeItem, clear } = useConverterStore();
@@ -44,30 +44,29 @@ export function ConverterWorkspace() {
     [items, updateItem],
   );
 
-  const doneItems = items.filter((i): i is QueueItem & { outputFileId: string } => i.status === "done" && !!i.outputFileId);
+  // Items already downloaded individually are consumed server-side
+  // (/api/download deletes on GET) and can't be zipped again.
+  const doneItems = items.filter(
+    (i): i is QueueItem & { outputFileId: string } => i.status === "done" && !!i.outputFileId && !i.downloaded,
+  );
 
   const downloadAllAsZip = useCallback(async () => {
     setDownloadingZip(true);
     try {
-      const entries: Zippable = {};
-      for (const item of doneItems) {
-        const res = await fetch(downloadUrl(item.outputFileId));
-        if (!res.ok) continue;
-        const buf = new Uint8Array(await res.arrayBuffer());
-        entries[item.outputFilename ?? `${item.id}.bin`] = buf;
-      }
-      const zipped = zipSync(entries);
-      const blob = new Blob([zipped], { type: "application/zip" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "any2md-conversions.zip";
-      a.click();
-      URL.revokeObjectURL(url);
+      const res = await fetch(downloadZipUrl(doneItems.map((i) => i.outputFileId)));
+      if (!res.ok) await parseErrorResponse(res);
+      const blob = await res.blob();
+      saveBlob(blob, "any2md-conversions.zip");
+      for (const item of doneItems) updateItem(item.id, { downloaded: true });
+    } catch (err) {
+      const message = err instanceof ClientConversionError ? err.message : "Couldn't download the ZIP. Please try again.";
+      toast.error(message);
     } finally {
       setDownloadingZip(false);
     }
-  }, [doneItems]);
+  }, [doneItems, updateItem]);
+
+  const markDownloaded = useCallback((id: string) => updateItem(id, { downloaded: true }), [updateItem]);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
@@ -107,6 +106,7 @@ export function ConverterWorkspace() {
                 onTargetChange={setTargetFormat}
                 onRemove={removeItem}
                 onConvert={runConversion}
+                onDownloaded={markDownloaded}
               />
             ))}
           </div>

@@ -5,7 +5,7 @@
  * easier to audit than pulling in a dependency for it.
  */
 import type { ConversionEngine } from "../types";
-import { outputName } from "./util";
+import { escapeTableCell, outputName } from "./util";
 import { ConversionError } from "../types";
 
 /** Parse CSV text into rows of string cells. Handles RFC 4180 quoting. */
@@ -72,10 +72,6 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => !(r.length === 1 && r[0] === ""));
 }
 
-function escapeCell(cell: string): string {
-  return cell.replace(/\|/g, "\|").replace(/\r?\n/g, "<br>");
-}
-
 export function csvRowsToMarkdownTable(rows: string[][]): string {
   if (rows.length === 0) return "";
   const colCount = Math.max(...rows.map((r) => r.length));
@@ -87,9 +83,9 @@ export function csvRowsToMarkdownTable(rows: string[][]): string {
 
   const [header, ...rest] = rows.map(pad);
   const lines = [
-    `| ${header.map(escapeCell).join(" | ")} |`,
+    `| ${header.map(escapeTableCell).join(" | ")} |`,
     `| ${header.map(() => "---").join(" | ")} |`,
-    ...rest.map((r) => `| ${r.map(escapeCell).join(" | ")} |`),
+    ...rest.map((r) => `| ${r.map(escapeTableCell).join(" | ")} |`),
   ];
   return lines.join("\n") + "\n";
 }

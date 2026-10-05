@@ -11,6 +11,7 @@ import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { useSinglePdf } from "../../../lib/pdf/use-single-pdf";
 import { runPdfTool, ClientConversionError, type PdfToolsOutput } from "../../../lib/pdf/client";
+import { validateRangeInputs } from "../../../lib/pdf/page-list";
 
 interface RangeInput {
   id: string;
@@ -38,22 +39,25 @@ export function SplitPanel() {
 
   const run = useCallback(async () => {
     if (!pdf.fileId) return;
-    const parsed = ranges.map((r) => ({ start: Number(r.start), end: Number(r.end) }));
-    if (parsed.some((r) => !Number.isInteger(r.start) || !Number.isInteger(r.end) || r.start < 1)) {
-      toast.error("Each range needs valid start and end page numbers.");
+    // Was: Number(r.start)/Number(r.end) with only `start` bounds-checked.
+    // Number("") is 0, which IS an integer, so a blank End field passed
+    // this check and shipped { start: 1, end: 0 } to the server.
+    const result = validateRangeInputs(ranges, pdf.pageCount);
+    if (!result.ok) {
+      toast.error(result.message);
       return;
     }
     setRunning(true);
     try {
-      const result = await runPdfTool({ operation: "split", fileIds: [pdf.fileId], options: { ranges: parsed } });
-      setOutputs(result.outputs);
+      const response = await runPdfTool({ operation: "split", fileIds: [pdf.fileId], options: { ranges: result.ranges } });
+      setOutputs(response.outputs);
     } catch (err) {
       const message = err instanceof ClientConversionError ? err.message : "Split failed. Please try again.";
       toast.error(message);
     } finally {
       setRunning(false);
     }
-  }, [pdf.fileId, ranges]);
+  }, [pdf.fileId, pdf.pageCount, ranges]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,9 +76,9 @@ export function SplitPanel() {
 
       {pdf.status === "ready" && (
         <div className="flex flex-col gap-3">
-          <Label>Page ranges</Label>
+          <Label id="split-ranges-label">Page ranges</Label>
           {ranges.map((r) => (
-            <div key={r.id} className="flex items-center gap-2">
+            <div key={r.id} className="flex items-center gap-2" role="group" aria-labelledby="split-ranges-label">
               <Input
                 type="number"
                 min={1}
@@ -82,6 +86,7 @@ export function SplitPanel() {
                 value={r.start}
                 onChange={(e) => updateRange(r.id, { start: e.target.value })}
                 placeholder="Start"
+                aria-label="Start page"
                 className="w-24"
               />
               <span className="text-sm text-muted-foreground">to</span>
@@ -92,6 +97,7 @@ export function SplitPanel() {
                 value={r.end}
                 onChange={(e) => updateRange(r.id, { end: e.target.value })}
                 placeholder="End"
+                aria-label="End page"
                 className="w-24"
               />
               <Button
@@ -109,7 +115,7 @@ export function SplitPanel() {
             <Plus className="size-4" aria-hidden />
             Add range
           </Button>
-          <Button onClick={run} disabled={running} className="self-start">
+          <Button onClick={run} disabled={running || !pdf.fileId} className="self-start">
             {running ? "Splitting…" : "Split PDF"}
           </Button>
         </div>

@@ -38,6 +38,7 @@ export const docxToMarkdown: ConversionEngine = async (input, filename, options)
       "CORRUPTED_FILE",
       "Couldn't read this document",
       `"${filename}" could not be opened. It may be corrupted, password-protected, or not a valid .docx file.`,
+      { cause: err },
     );
   }
 
@@ -62,8 +63,4 @@ export const docxToMarkdown: ConversionEngine = async (input, filename, options)
   };
 };
 
-function stripExt(filename: string): string {
-  const dot = filename.lastIndexOf(".");
-  return dot > 0 ? filename.slice(0, dot) : filename;
-}
 

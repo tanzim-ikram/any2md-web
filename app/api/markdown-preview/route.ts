@@ -13,7 +13,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { renderMarkdownToHtml, wrapHtmlDocument } from "../../../lib/markdown/render";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../../../lib/rate-limit";
-import { errorResponse } from "../../../lib/api/errors";
+import { errorResponse, readJsonBody } from "../../../lib/api/errors";
 import { ConversionError } from "../../../lib/conversion/types";
 
 export const runtime = "nodejs";
@@ -36,7 +36,14 @@ export async function POST(request: NextRequest) {
       throw new ConversionError("RATE_LIMITED", "Too many requests", "Please slow down and try again shortly.");
     }
 
-    const body = (await request.json()) as { markdown?: string };
+    const body = await readJsonBody<{ markdown?: unknown }>(request);
+    // `body.markdown` is untrusted JSON, not necessarily a string: a
+    // number crashed renderMarkdownToHtml into a generic 500, and an
+    // object/array silently rendered an EMPTY preview with a 200 -- worse
+    // than the 500, since it looks like it worked.
+    if (body.markdown !== undefined && typeof body.markdown !== "string") {
+      throw new ConversionError("INVALID_REQUEST", "Invalid request", "`markdown` must be a string.");
+    }
     const markdown = body.markdown ?? "";
     if (markdown.length > MAX_MARKDOWN_LENGTH) {
       throw new ConversionError(

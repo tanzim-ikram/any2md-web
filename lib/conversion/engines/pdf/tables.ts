@@ -19,6 +19,7 @@
 import type { PdfBlock } from "./lines";
 import type { PdfTableGrid, PdfTextItem } from "./types";
 import type { PdfjsModule } from "./pdfjs";
+import { escapeTableCell } from "../util";
 
 type Matrix = [number, number, number, number, number, number]; // a,b,c,d,e,f
 
@@ -225,10 +226,6 @@ export function removeItemsInTables(items: PdfTextItem[], tables: PdfTableGrid[]
   });
 }
 
-function escapeCell(cell: string): string {
-  return cell.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
-}
-
 export function tableToBlock(table: PdfTableGrid): PdfBlock {
   const colCount = Math.max(...table.rows.map((r) => r.length), 1);
   const pad = (r: string[]) => {
@@ -238,9 +235,9 @@ export function tableToBlock(table: PdfTableGrid): PdfBlock {
   };
   const [header, ...rest] = table.rows.map(pad);
   const lines = [
-    `| ${header.map(escapeCell).join(" | ")} |`,
+    `| ${header.map(escapeTableCell).join(" | ")} |`,
     `| ${header.map(() => "---").join(" | ")} |`,
-    ...rest.map((r) => `| ${r.map(escapeCell).join(" | ")} |`),
+    ...rest.map((r) => `| ${r.map(escapeTableCell).join(" | ")} |`),
   ];
   return { kind: "paragraph", text: lines.join("\n") };
 }

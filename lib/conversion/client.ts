@@ -31,7 +31,7 @@ export class ClientConversionError extends Error {
   }
 }
 
-async function parseErrorResponse(res: Response): Promise<never> {
+export async function parseErrorResponse(res: Response): Promise<never> {
   let title = "Something went wrong";
   let message = `Request failed (${res.status}).`;
   try {
@@ -68,6 +68,13 @@ export async function convertOneFile({ file, targetFormat, onProgress }: Convert
 
 export function downloadUrl(outputFileId: string): string {
   return `/api/download?fileId=${encodeURIComponent(outputFileId)}`;
+}
+
+/** URL for /api/download-zip, which zips several outputs server-side and
+ * deletes each input exactly once -- see that route's own doc comment for
+ * why this replaced a client-side fetch-loop-then-zip pattern. */
+export function downloadZipUrl(fileIds: string[]): string {
+  return `/api/download-zip?fileIds=${encodeURIComponent(fileIds.join(","))}`;
 }
 
 /** Run conversions with a concurrency cap so a large batch doesn't fire 30

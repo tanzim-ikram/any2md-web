@@ -1,26 +1,29 @@
 "use client";
 
 import { useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type FileRejection } from "react-dropzone";
 import { UploadCloud } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "../../lib/utils";
 import { MAX_FILES_PER_BATCH, MAX_FILE_SIZE_BYTES } from "../../lib/security/validation";
+import { describeRejections } from "../../lib/upload/rejections";
 
 const ACCEPT = {
   "application/pdf": [".pdf"],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx", ".xlsm"],
   "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
   "text/html": [".html", ".htm"],
   "text/csv": [".csv"],
   "text/plain": [".txt"],
-  "text/markdown": [".md"],
+  "text/markdown": [".md", ".markdown"],
 };
 
 export function Dropzone({ onFiles }: { onFiles: (files: File[]) => void }) {
   const onDrop = useCallback(
-    (accepted: File[]) => {
+    (accepted: File[], rejections: FileRejection[]) => {
       if (accepted.length > 0) onFiles(accepted);
+      for (const message of describeRejections(rejections)) toast.error(message);
     },
     [onFiles],
   );

@@ -1,12 +1,15 @@
 /**
  * GET /api/download?fileId=... -- streams the converted file and then
  * deletes it (plan section 7's delete-on-download path). The browser never
- * sees the underlying storage URL, only this route.
+ * sees the underlying storage URL, only this route. See /api/download-zip
+ * for downloading several outputs as a single archive.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getFileStorage } from "../../../lib/storage";
 import { deleteFile, getFileRecord } from "../../../lib/lifecycle";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "../../../lib/rate-limit";
 import { errorResponse } from "../../../lib/api/errors";
+import { contentDisposition } from "../../../lib/api/http";
 import { ConversionError } from "../../../lib/conversion/types";
 import { FORMAT_MIME, EXTENSION_TO_FORMAT } from "../../../lib/conversion/types";
 
@@ -21,6 +24,12 @@ function mimeForFilename(filename: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request.headers);
+    const rate = await checkRateLimit(RATE_LIMITS.download, ip);
+    if (!rate.success) {
+      throw new ConversionError("RATE_LIMITED", "Too many requests", "Please slow down and try again shortly.");
+    }
+
     const fileId = request.nextUrl.searchParams.get("fileId");
     if (!fileId) {
       throw new ConversionError("FILE_NOT_FOUND", "File not found", "No file was specified.");
@@ -53,8 +62,10 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": mimeForFilename(record.originalFilename),
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(record.originalFilename)}"`,
-        "Content-Length": String(buffer.length),
+        "Content-Disposition": contentDisposition(record.originalFilename),
+        // No manual Content-Length: Next's response compression (on by
+        // default) can change the wire length, making a hand-set value
+        // wrong; the platform sets the real one.
         "Cache-Control": "no-store",
       },
     });

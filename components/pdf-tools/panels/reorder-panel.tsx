@@ -17,12 +17,15 @@ export function ReorderPanel() {
   const [running, setRunning] = useState(false);
   const [outputs, setOutputs] = useState<PdfToolsOutput[]>([]);
 
-  // Adjust the prefilled order whenever a new PDF's page count arrives, by
-  // detecting the change during render rather than in an effect (React's
-  // documented pattern for state derived from a prop that just changed).
-  const [prefilledFor, setPrefilledFor] = useState<number | null>(null);
-  if (pdf.pageCount !== prefilledFor) {
-    setPrefilledFor(pdf.pageCount);
+  // Adjust the prefilled order whenever a new PDF arrives, by detecting the
+  // change during render rather than in an effect (React's documented
+  // pattern for state derived from a prop that just changed). Keyed on
+  // fileId, not pageCount -- two different uploads can share a page count,
+  // and keying on the count alone left a stale custom order in place when
+  // a *different* same-length PDF replaced the current one.
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+  if (pdf.fileId !== prefilledFor) {
+    setPrefilledFor(pdf.fileId);
     setOrderInput(pdf.pageCount ? Array.from({ length: pdf.pageCount }, (_, i) => i + 1).join(",") : "");
   }
 
@@ -72,7 +75,7 @@ export function ReorderPanel() {
               Comma-separated list of all {pdf.pageCount} pages in their new order, e.g. 3,1,2.
             </p>
           </div>
-          <Button onClick={run} disabled={running} className="self-start">
+          <Button onClick={run} disabled={running || !pdf.fileId} className="self-start">
             {running ? "Reordering…" : "Reorder pages"}
           </Button>
         </div>

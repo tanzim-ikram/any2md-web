@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { csvToMarkdown, parseCsv, csvRowsToMarkdownTable } from "../../lib/conversion/engines/csv";
+import { escapeTableCell } from "../../lib/conversion/engines/util";
 import { txtToMarkdown } from "../../lib/conversion/engines/txt";
 import { htmlFileToMarkdown, markdownToHtml } from "../../lib/conversion/engines/html";
 import { docxToMarkdown } from "../../lib/conversion/engines/docx";
@@ -27,6 +28,23 @@ describe("csv parser", () => {
     expect(md).toContain("| --- | --- |");
     expect(md).toContain("| 1 | 2 |");
   });
+
+  it("escapes a literal pipe in a cell so it can't be read as a column separator", () => {
+    const md = csvRowsToMarkdownTable([["h"], ["a|b"]]);
+    const dataRow = md.split("\n")[2];
+    // the pipe must be backslash-escaped, not emitted bare -- a bare "|"
+    // here would render as a spurious extra column in any markdown viewer.
+    expect(dataRow).toBe("| a\\|b |");
+  });
+});
+
+describe("escapeTableCell", () => {
+  it("escapes pipes and converts newlines to <br>", () => {
+    expect(escapeTableCell("a|b")).toBe("a\\|b");
+    expect(escapeTableCell("a\nb")).toBe("a<br>b");
+    expect(escapeTableCell("a\r\nb")).toBe("a<br>b");
+    expect(escapeTableCell("plain")).toBe("plain");
+  });
 });
 
 describe("csvToMarkdown engine", () => {
@@ -43,6 +61,14 @@ describe("csvToMarkdown engine", () => {
     await expect(csvToMarkdown(Buffer.from(""), "empty.csv", {})).rejects.toMatchObject({
       code: "CORRUPTED_FILE",
     });
+  });
+
+  it("escapes a pipe inside a cell end to end", async () => {
+    const buf = Buffer.from('x,y\n"A|B",2\n', "utf-8");
+    const result = await csvToMarkdown(buf, "data.csv", {});
+    const text = result.buffer.toString("utf-8");
+    expect(text).toContain("A\\|B");
+    expect(text).not.toContain("| A|B |");
   });
 });
 
@@ -128,5 +154,18 @@ describe("xlsxToMarkdown engine", () => {
     expect(text).toContain("| Name | Score |");
     expect(text).toContain("Ada");
     expect(text).toContain("## Sheet2");
+  });
+
+  it("escapes a pipe inside a cell end to end (shares csv.ts's table renderer)", async () => {
+    const wb = new ExcelJS.Workbook();
+    const s1 = wb.addWorksheet("Sheet1");
+    s1.addRow(["Name", "Formula"]);
+    s1.addRow(["Alpha", "A|B"]);
+
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    const result = await xlsxToMarkdown(buf, "book.xlsx", {});
+    const text = result.buffer.toString("utf-8");
+    expect(text).toContain("A\\|B");
+    expect(text).not.toContain("| A|B |");
   });
 });

@@ -128,11 +128,12 @@ export const pptxToMarkdown: ConversionEngine = async (input, filename, options)
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(input);
-  } catch {
+  } catch (err) {
     throw new ConversionError(
       "CORRUPTED_FILE",
       "Couldn't read this presentation",
       `"${filename}" could not be opened. It may be corrupted or not a valid .pptx file.`,
+      { cause: err },
     );
   }
 

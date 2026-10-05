@@ -61,6 +61,10 @@ export const RATE_LIMITS = {
   convert: { name: "convert", limit: 60, windowSeconds: 60 * 60 }, // 60 conversions/hour
   pdfTools: { name: "pdf-tools", limit: 60, windowSeconds: 60 * 60 }, // 60 PDF-toolbox ops/hour
   preview: { name: "preview", limit: 600, windowSeconds: 60 * 60 }, // generous: fires on debounced keystrokes
+  // /api/download and /api/download-zip previously had no rate limit at
+  // all -- generous enough to never bother a real user (one download per
+  // converted file, plus the occasional ZIP), but bounded.
+  download: { name: "download", limit: 120, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /** Best-effort real client IP from standard proxy headers (Vercel sets

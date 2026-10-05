@@ -65,7 +65,7 @@ export function CompressPanel() {
             />
             <p className="text-xs text-muted-foreground">Lower = smaller file, more visible compression artifacts.</p>
           </div>
-          <Button onClick={run} disabled={running} className="self-start">
+          <Button onClick={run} disabled={running || !pdf.fileId} className="self-start">
             {running ? "Compressing…" : "Compress PDF"}
           </Button>
         </div>

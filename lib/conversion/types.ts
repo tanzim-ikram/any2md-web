@@ -29,6 +29,17 @@ export const INPUT_FORMATS: FormatId[] = [
 
 export const OUTPUT_FORMATS: FormatId[] = ["md", "pdf", "docx", "html", "pptx"];
 
+/** True for a value that is one of the formats this app can actually
+ * produce. Distinct from "is a known FormatId at all" (every input format,
+ * e.g. "xlsx"/"csv"/"txt", is a valid FormatId but none of them can ever be
+ * a conversion *target* -- see OUTPUT_FORMATS). Validating against the
+ * wrong list here is what let a request ask for an unreachable target and
+ * only fail deep inside the registry, after the file had already been
+ * marked "processing". */
+export function isOutputFormat(value: unknown): value is FormatId {
+  return typeof value === "string" && (OUTPUT_FORMATS as string[]).includes(value);
+}
+
 /** Extension (without dot) -> canonical FormatId. Deliberately only OOXML —
  * legacy .doc/.ppt/.xls need LibreOffice, which cannot run on Vercel. */
 export const EXTENSION_TO_FORMAT: Record<string, FormatId> = {
@@ -126,6 +137,7 @@ export type ConversionEngine = (
 /** Stable, enumerable error codes. The UI maps these to copy — see
  * lib/security/errors.ts — so a raw exception never reaches the client. */
 export type ErrorCode =
+  | "INVALID_REQUEST"
   | "UNSUPPORTED_FORMAT"
   | "LEGACY_FORMAT_UNSUPPORTED"
   | "SAME_FORMAT"
@@ -153,8 +165,8 @@ export class ConversionError extends Error {
   readonly code: ErrorCode;
   readonly title: string;
 
-  constructor(code: ErrorCode, title: string, message: string) {
-    super(message);
+  constructor(code: ErrorCode, title: string, message: string, options?: { cause?: unknown }) {
+    super(message, options?.cause !== undefined ? { cause: options.cause } : undefined);
     this.code = code;
     this.title = title;
     this.name = "ConversionError";
@@ -163,6 +175,30 @@ export class ConversionError extends Error {
   toUserFacingError(): UserFacingError {
     return { code: this.code, title: this.title, message: this.message };
   }
+}
+
+/** Error codes that describe a problem with the *request* (a bad page
+ * range, an unreachable target format, too many requests) rather than the
+ * uploaded file itself. On these, the upload must survive so the user can
+ * correct their input and retry with the same fileId -- see isRecoverable. */
+const RECOVERABLE_CODES: ReadonlySet<ErrorCode> = new Set([
+  "INVALID_REQUEST",
+  "INVALID_PAGE_RANGE",
+  "SAME_FORMAT",
+  "UNSUPPORTED_FORMAT",
+  "RATE_LIMITED",
+  "PAGE_LIMIT_EXCEEDED",
+  "TOO_MANY_FILES",
+]);
+
+/** True when `err` is a request-input problem the user can fix by
+ * resubmitting against the *same* upload (a typo'd page range, an
+ * unreachable target format, ...), as opposed to the file itself being
+ * unusable (corrupted, password-protected, an internal failure). Routes
+ * that destroy the input on every error (see app/api/convert/route.ts and
+ * app/api/pdf-tools/route.ts) must check this before deleting anything. */
+export function isRecoverable(err: unknown): boolean {
+  return err instanceof ConversionError && RECOVERABLE_CODES.has(err.code);
 }
 
 export type ConversionRequest = {

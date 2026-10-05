@@ -25,11 +25,13 @@ export function QueueItemRow({
   onTargetChange,
   onRemove,
   onConvert,
+  onDownloaded,
 }: {
   item: QueueItem;
   onTargetChange: (id: string, format: FormatId) => void;
   onRemove: (id: string) => void;
   onConvert: (id: string) => void;
+  onDownloaded: (id: string) => void;
 }) {
   const availableTargets = item.sourceFormat ? getToolsForSource(item.sourceFormat) : [];
   const isBusy = item.status === "uploading" || item.status === "converting";
@@ -88,7 +90,7 @@ export function QueueItemRow({
           </span>
         )}
 
-        {item.status === "done" && item.outputFileId && (
+        {item.status === "done" && item.outputFileId && !item.downloaded && (
           <>
             <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="size-4" aria-hidden />
@@ -98,13 +100,21 @@ export function QueueItemRow({
               size="sm"
               variant="secondary"
               render={
-                <a href={downloadUrl(item.outputFileId)} download={item.outputFilename}>
+                <a
+                  href={downloadUrl(item.outputFileId)}
+                  download={item.outputFilename}
+                  onClick={() => onDownloaded(item.id)}
+                >
                   <Download className="size-4" aria-hidden />
                   Download
                 </a>
               }
             />
           </>
+        )}
+
+        {item.status === "done" && item.downloaded && (
+          <span className="text-sm text-muted-foreground">Downloaded -- convert again to re-download</span>
         )}
 
         {item.status === "error" && (

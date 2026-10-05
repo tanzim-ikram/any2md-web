@@ -13,3 +13,12 @@ export function outputName(customName: string | undefined, sourceFilename: strin
   const base = customName ?? stripExt(sourceFilename);
   return `${base}.${ext}`;
 }
+
+/** Escapes a cell's content for placement inside a Markdown pipe table:
+ * a literal `|` would otherwise be read as a column separator, and a
+ * newline would break the single-line-per-row table syntax entirely.
+ * Shared by csv.ts and pdf/tables.ts so the escaping logic has one
+ * definition instead of two that can silently drift apart. */
+export function escapeTableCell(cell: string): string {
+  return cell.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
+}

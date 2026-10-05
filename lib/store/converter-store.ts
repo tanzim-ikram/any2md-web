@@ -27,6 +27,12 @@ export interface QueueItem {
   outputFileId?: string;
   outputFilename?: string;
   errorMessage?: string;
+  /** True once the per-file Download link has been clicked. /api/download
+   * deletes the output on the GET it triggers, so the link is single-use
+   * regardless of whether the browser's save dialog is actually completed
+   * -- this flips as soon as the click fires, to match that reality, and
+   * the row then offers "convert again" instead of a now-dead link. */
+  downloaded?: boolean;
 }
 
 interface ConverterState {

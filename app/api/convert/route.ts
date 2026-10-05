@@ -13,14 +13,13 @@ import { getFileStorage } from "../../../lib/storage";
 import { createFileRecord, deleteFile, getFileRecord, markFailed, updateFileRecord } from "../../../lib/lifecycle";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../../../lib/rate-limit";
 import { runConversion } from "../../../lib/conversion/registry";
-import { errorResponse } from "../../../lib/api/errors";
-import { ConversionError, type ConversionOptions, type FormatId } from "../../../lib/conversion/types";
-import { EXTENSION_TO_FORMAT } from "../../../lib/conversion/types";
+import { errorResponse, readJsonBody } from "../../../lib/api/errors";
+import { ConversionError, isOutputFormat, isRecoverable, type ConversionOptions, type FormatId } from "../../../lib/conversion/types";
 
 export const runtime = "nodejs";
-// PDF rendering (Chromium cold start) and large documents need headroom;
-// actual ceiling is clamped by the Vercel plan at deploy time regardless.
-export const maxDuration = 300;
+// Vercel Hobby's ceiling (60s) is the actual deploy target -- see the smoke
+// test plan. A md:pdf cold Chromium start plus render must fit inside this.
+export const maxDuration = 60;
 
 interface ConvertRequestBody {
   fileId?: string;
@@ -48,11 +47,11 @@ function sanitizeOptions(input: ConvertRequestBody["options"]): ConversionOption
   return out;
 }
 
-function isFormatId(value: string | undefined): value is FormatId {
-  return !!value && Object.values(EXTENSION_TO_FORMAT).includes(value as FormatId);
-}
-
 export async function POST(request: NextRequest) {
+  // Not assigned until the request itself has been validated -- a bad
+  // targetFormat or a missing fileId must never reach the catch below with
+  // fileId set, or markFailed would delete a perfectly good upload over a
+  // pure request error (see isRecoverable / the smoke test's finding).
   let fileId: string | undefined;
   try {
     const ip = getClientIp(request.headers);
@@ -65,12 +64,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as ConvertRequestBody;
-    fileId = body.fileId;
-    if (!fileId || !isFormatId(body.targetFormat)) {
-      throw new ConversionError("UNSUPPORTED_FORMAT", "Invalid request", "A fileId and targetFormat are required.");
+    const body = await readJsonBody<ConvertRequestBody>(request);
+    if (!body.fileId || !isOutputFormat(body.targetFormat)) {
+      throw new ConversionError("INVALID_REQUEST", "Invalid request", "A fileId and targetFormat are required.");
     }
     const targetFormat = body.targetFormat;
+    fileId = body.fileId;
 
     const record = await getFileRecord(fileId);
     if (!record) {
@@ -123,8 +122,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     if (fileId) {
-      const message = err instanceof ConversionError ? err.message : "Conversion failed";
-      await markFailed(fileId, "failed", message).catch(() => void 0);
+      if (isRecoverable(err)) {
+        // The problem is the request (e.g. SAME_FORMAT, an unreachable
+        // targetFormat), not the file -- restore it to "uploaded" so the
+        // user can retry against the same fileId instead of having to
+        // re-upload after every typo.
+        await updateFileRecord(fileId, { status: "uploaded", error: undefined }).catch(() => void 0);
+      } else {
+        const message = err instanceof ConversionError ? err.message : "Conversion failed";
+        await markFailed(fileId, "failed", message).catch(() => void 0);
+      }
     }
     return errorResponse(err);
   }
