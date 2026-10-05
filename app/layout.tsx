@@ -31,7 +31,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+      {/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject
+          attributes like data-gr-ext-installed onto <body> before React
+          hydrates, which would otherwise always flag as a false-positive
+          mismatch here -- see https://react.dev/link/hydration-mismatch */}
+      <body className="flex min-h-full flex-col bg-background text-foreground" suppressHydrationWarning>
         <ThemeProvider>
           <SiteNav />
           <main className="flex-1">{children}</main>

@@ -43,11 +43,20 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  nativeButton,
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
+      // Every call site in this app that passes `render` substitutes a
+      // link/anchor (Next's <Link>, a plain <a>), never a real <button> --
+      // so default nativeButton to false whenever render is given, rather
+      // than Base UI's own default of true, which assumes a native button
+      // and warns otherwise. An explicit nativeButton prop still wins.
+      nativeButton={nativeButton ?? !render}
+      render={render}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
