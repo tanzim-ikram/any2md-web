@@ -10,7 +10,7 @@ import { FORMAT_LABELS, type FormatId } from "../../lib/conversion/types";
 import { convertOneFile, downloadUrl, ClientConversionError } from "../../lib/conversion/client";
 import { useMounted } from "../../lib/hooks/use-mounted";
 
-const DRAFT_KEY = "any2md-editor-draft";
+const DRAFT_KEY = "docsmith-editor-draft";
 const DEFAULT_MARKDOWN = `# Untitled document
 
 Start writing in Markdown. The preview on the right updates as you type.

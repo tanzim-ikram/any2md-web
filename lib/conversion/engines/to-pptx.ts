@@ -99,8 +99,8 @@ export const markdownToPptx: ConversionEngine = async (input, filename, options)
   }
 
   const pptx = new PptxGenJS();
-  pptx.defineLayout({ name: "ANY2MD", width: 10, height: 5.63 });
-  pptx.layout = "ANY2MD";
+  pptx.defineLayout({ name: "DOCSMITH", width: 10, height: 5.63 });
+  pptx.layout = "DOCSMITH";
 
   for (const slideData of slides) {
     const slide = pptx.addSlide();

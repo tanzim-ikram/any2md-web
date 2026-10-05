@@ -33,7 +33,7 @@ function generateFileId(): string {
 }
 
 class LocalFileStorage implements FileStorage {
-  private dir = path.join(os.tmpdir(), "any2md-dev-storage");
+  private dir = path.join(os.tmpdir(), "docsmith-dev-storage");
 
   private async ensureDir() {
     await fs.mkdir(this.dir, { recursive: true });

@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Any2MD — Convert anything to Markdown",
-    template: "%s · Any2MD",
+    default: "Docsmith — Markdown converter, PDF toolbox & live editor",
+    template: "%s · Docsmith",
   },
   description:
     "Convert documents, PDFs, spreadsheets, presentations, and web pages into clean Markdown — then turn Markdown back into polished documents.",

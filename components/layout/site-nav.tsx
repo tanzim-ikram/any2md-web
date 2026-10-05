@@ -20,7 +20,7 @@ export function SiteNav() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
           <FileStack className="size-5" aria-hidden />
-          <span>Any2MD</span>
+          <span>Docsmith</span>
         </Link>
 
         <nav className="hidden items-center gap-1 sm:flex" aria-label="Primary">

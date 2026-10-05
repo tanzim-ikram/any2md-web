@@ -48,7 +48,7 @@ const QUOTE_BORDER = "2563EB";
 const HR_COLOR = "BBBBB5";
 const HEADER_SHADE = "F3F3F1";
 
-const ORDERED_NUMBERING_REF = "any2md-ordered";
+const ORDERED_NUMBERING_REF = "docsmith-ordered";
 
 interface InlineFormat {
   bold?: boolean;

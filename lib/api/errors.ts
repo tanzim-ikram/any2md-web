@@ -17,7 +17,7 @@ export function errorResponse(err: unknown, httpStatus?: number): NextResponse {
     // in the logs (see lib/conversion/engines/to-pdf.ts and friends, which
     // pass `cause` precisely so this can log it).
     if (err.cause !== undefined || statusForCode(err.code) >= 500) {
-      console.error(`[any2md] ${err.code}: ${err.message}`, err.cause ?? "");
+      console.error(`[docsmith] ${err.code}: ${err.message}`, err.cause ?? "");
     }
     return NextResponse.json(
       { error: { code: err.code, title: err.title, message: err.message } },
@@ -26,7 +26,7 @@ export function errorResponse(err: unknown, httpStatus?: number): NextResponse {
   }
 
   // Unknown error: log server-side only, never leak internals to the client.
-  console.error("[any2md] unhandled error:", err);
+  console.error("[docsmith] unhandled error:", err);
   return NextResponse.json(
     {
       error: {

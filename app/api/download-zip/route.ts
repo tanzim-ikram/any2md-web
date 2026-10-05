@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": contentDisposition("any2md-conversions.zip"),
+        "Content-Disposition": contentDisposition("docsmith-conversions.zip"),
         "Cache-Control": "no-store",
       },
     });

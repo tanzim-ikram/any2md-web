@@ -56,7 +56,7 @@ export function ConverterWorkspace() {
       const res = await fetch(downloadZipUrl(doneItems.map((i) => i.outputFileId)));
       if (!res.ok) await parseErrorResponse(res);
       const blob = await res.blob();
-      saveBlob(blob, "any2md-conversions.zip");
+      saveBlob(blob, "docsmith-conversions.zip");
       for (const item of doneItems) updateItem(item.id, { downloaded: true });
     } catch (err) {
       const message = err instanceof ClientConversionError ? err.message : "Couldn't download the ZIP. Please try again.";
