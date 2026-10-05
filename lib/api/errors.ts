@@ -44,6 +44,7 @@ function statusForCode(code: ErrorCode): number {
     case "INVALID_FILE_TYPE":
     case "CORRUPTED_FILE":
     case "PASSWORD_PROTECTED":
+    case "INVALID_PAGE_RANGE":
     case "TOOL_UNAVAILABLE":
       return 422;
     case "RATE_LIMITED":

@@ -142,8 +142,8 @@ export const TOOLS: ToolDefinition[] = [
     status: "stable",
   },
 
-  // PDF toolbox (Phase 4 scaffold — merge/split/rotate are implemented;
-  // others are declared so the architecture and nav are visibly extensible).
+  // PDF toolbox. These operate pdf -> pdf and are reached through
+  // /api/pdf-tools (lib/pdf/toolbox.ts), not through registry.ts.
   {
     id: "pdf:merge",
     name: "Merge PDF",

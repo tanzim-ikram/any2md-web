@@ -14,6 +14,7 @@ import { createFileRecord, updateFileRecord } from "../../../lib/lifecycle";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "../../../lib/rate-limit";
 import { errorResponse } from "../../../lib/api/errors";
 import { ConversionError } from "../../../lib/conversion/types";
+import { getPdfPageCount } from "../../../lib/pdf/toolbox";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -44,11 +45,17 @@ export async function POST(request: NextRequest) {
     const record = await createFileRecord(fileId, sanitizedFilename, buffer.length);
     await updateFileRecord(fileId, { sourceFormat: format });
 
+    // The PDF toolbox needs a page count up front (to validate page-range
+    // inputs client-side before an operation runs); cheap via pdf-lib, so
+    // computed here rather than adding a second round-trip.
+    const pageCount = format === "pdf" ? await getPdfPageCount(buffer, sanitizedFilename).catch(() => undefined) : undefined;
+
     return NextResponse.json({
       fileId: record.fileId,
       filename: sanitizedFilename,
       format,
       size: buffer.length,
+      ...(pageCount !== undefined ? { pageCount } : {}),
     });
   } catch (err) {
     return errorResponse(err);

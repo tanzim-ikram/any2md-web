@@ -59,6 +59,8 @@ export async function checkRateLimit(rule: RateLimitRule, ip: string): Promise<R
 export const RATE_LIMITS = {
   upload: { name: "upload", limit: 30, windowSeconds: 60 * 60 }, // 30 uploads/hour
   convert: { name: "convert", limit: 60, windowSeconds: 60 * 60 }, // 60 conversions/hour
+  pdfTools: { name: "pdf-tools", limit: 60, windowSeconds: 60 * 60 }, // 60 PDF-toolbox ops/hour
+  preview: { name: "preview", limit: 600, windowSeconds: 60 * 60 }, // generous: fires on debounced keystrokes
 } as const satisfies Record<string, RateLimitRule>;
 
 /** Best-effort real client IP from standard proxy headers (Vercel sets
